@@ -4,8 +4,8 @@ from pathlib import Path
 
 class Config(object):
     def __init__(self):
-        self.pdb_folder = "/home/dp/Data/PDB"
-        self.working_folder = "/home/dp/Data/sch_lib"
+        self.pdb_folder = "/home/gluck/pdbs"
+        self.working_folder = "/home/gluck/sch_lib"
         self.log_folder = "log"
         self.lib_folder = 'library'
         self.test_folder = 'test'
@@ -15,7 +15,7 @@ class Config(object):
         self.log_every = 2
         self.candidates_file = 'candidates.pkl'
         self.custom_rotlib_folder = Path(__file__).parent.parent / 'data' / 'custom_lib'
-        self.create_workspace()
+        # self.create_workspace()
 
     def create_workspace(self):
         self.working_folder = Path(self.working_folder)
