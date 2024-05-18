@@ -18,3 +18,4 @@ VOLUMES["test"]="-v /root/workers/test_data:/data"
 declare -A COMMANDS
 # available commands list
 # if passed, overrides command in Dockerfile's CMD
+COMMANDS["bash"]="bash"
