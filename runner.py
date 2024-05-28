@@ -52,7 +52,7 @@ class ModificationRunner(Runner):
             cmd.save(in_path)
 
         logging.debug('Initiating packer')
-        with self.stage_writer('refine_intact', True):
+        with self.stage_writer('refine_intact', True, proceed=False):
             self.run_mutation(
                 in_path,
                 task.apfid[5],
@@ -60,7 +60,7 @@ class ModificationRunner(Runner):
                 task.amino_replacements[0].no,
                 os.path.join(task.workdir, 'reference.pdb')
             )
-        with self.stage_writer('apply_modification', True):
+        with self.stage_writer('apply_modification', True, proceed=False):
             self.run_mutation(
                 in_path,
                 task.apfid[5],
