@@ -4,6 +4,7 @@ import os.path
 from worker_framework import Runner, TaskTransfer
 from worker_framework.tools.workdir import CreateDirMode
 from worker_framework.message_managers import HttpPollMsgManager
+from worker_framework.exceptions import InvalidStatusCode
 from pymol import cmd
 from packer.mutation import MutationPacker
 import requests
@@ -34,13 +35,17 @@ class ModificationRunner(Runner):
 
     def handler(self, task: TaskTransfer) -> TaskTransfer:
         logging.debug(task.json())
-        with self.stage_writer('download'):
+        logging.debug('Initiating packer')
+        with self.stage_writer('refine_intact', True, proceed=False):
             if task.model_id > 0:
                 task.model_id -= 1
             raw_path = os.path.join(task.workdir, 'raw.pdb')
             in_path = os.path.join(task.workdir, 'backbone.pdb')
+            req = requests.get(task.url)
+            if req.status_code != 200:
+                raise InvalidStatusCode(req)
             with open(raw_path, 'w') as out_file:
-                out_file.write(requests.get(task.url).text)
+                out_file.write(req.text)
             cmd.reinitialize()
             cmd.load(raw_path)
             cmd.remove('not polymer')
@@ -50,9 +55,6 @@ class ModificationRunner(Runner):
             cmd.iterate(f'resi {task.amino_replacements[0].no} and n. CA', lambda atom: resns.append(atom.resn))
             source_residue = resns[0]
             cmd.save(in_path)
-
-        logging.debug('Initiating packer')
-        with self.stage_writer('refine_intact', True, proceed=False):
             self.run_mutation(
                 in_path,
                 task.apfid[5],
