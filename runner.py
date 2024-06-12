@@ -4,6 +4,7 @@ import os.path
 from worker_framework import Runner, TaskTransfer
 from worker_framework.tools.workdir import CreateDirMode
 from worker_framework.message_managers import HttpPollMsgManager
+from worker_framework.exceptions import InvalidStatusCode
 from pymol import cmd
 from packer.mutation import MutationPacker
 import requests
@@ -16,30 +17,59 @@ class ModificationRunner(Runner):
     create_dir_mode = CreateDirMode.always
     auto_store_file = False
     msg_manager_class = HttpPollMsgManager
+    worker_name = 'scpacker'
 
-    def handler(self, task: TaskTransfer) -> TaskTransfer:
-        logging.debug(task.json())
-        if task.model_id > 0:
-            task.model_id -= 1
-        in_path = os.path.join(task.workdir, 'reference.pdb')
-        with open(in_path, 'w') as out_file:
-            out_file.write(requests.get(task.url).text)
-        cmd.reinitialize()
-        cmd.load(in_path)
-        cmd.remove('not polymer')
-        cmd.save(in_path)
-
+    @staticmethod
+    def run_mutation(in_path, chain, code, no, out_path):
         packer = MutationPacker()
         packer.load_from_pdb(in_path)
         packer.mutate(
-            aa_code=task.amino_replacements[0].replace,
-            chain=task.apfid[5],
-            site=task.amino_replacements[0].no,
-            n_samples = 200,
-            with_library = True,
-            repack_mode = 'MCMC'  # MCMC, GA
+            aa_code=code,
+            chain=chain,
+            site=no,
+            n_samples=200,
+            with_library=True,
+            repack_mode='MCMC'  # MCMC, GA
         )
-        packer.save(os.path.join(task.workdir, 'modified.pdb'))
+        packer.save(out_path)
+
+    def handler(self, task: TaskTransfer) -> TaskTransfer:
+        logging.debug(task.json())
+        logging.debug('Initiating packer')
+        with self.stage_writer('refine_intact', True, proceed=False):
+            if task.model_id > 0:
+                task.model_id -= 1
+            raw_path = os.path.join(task.workdir, 'raw.pdb')
+            in_path = os.path.join(task.workdir, 'backbone.pdb')
+            req = requests.get(task.url)
+            if req.status_code != 200:
+                raise InvalidStatusCode(req)
+            with open(raw_path, 'w') as out_file:
+                out_file.write(req.text)
+            cmd.reinitialize()
+            cmd.load(raw_path)
+            cmd.remove('not polymer')
+            cmd.remove('elem H')
+            cmd.remove('not backbone and resn HIS')
+            resns = []
+            cmd.iterate(f'resi {task.amino_replacements[0].no} and n. CA', lambda atom: resns.append(atom.resn))
+            source_residue = resns[0]
+            cmd.save(in_path)
+            self.run_mutation(
+                in_path,
+                task.apfid[5],
+                source_residue,
+                task.amino_replacements[0].no,
+                os.path.join(task.workdir, 'reference.pdb')
+            )
+        with self.stage_writer('apply_modification', True, proceed=False):
+            self.run_mutation(
+                in_path,
+                task.apfid[5],
+                task.amino_replacements[0].replace,
+                task.amino_replacements[0].no,
+                os.path.join(task.workdir, 'modified.pdb')
+            )
         return task
 
 
