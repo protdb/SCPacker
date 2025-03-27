@@ -3,7 +3,7 @@ from copy import deepcopy
 import numpy as np
 from chilife import mutate, SUPPORTED_RESIDUES, batch_ic2cart, GAS_CONST, get_sasa
 from deap.tools import mutPolynomialBounded, cxSimulatedBinaryBounded, cxBlend
-from numba import njit
+
 
 from data.templates import NCAA_TEMPLATES_, NON_REPACKED_RESIDUES
 from packer.ensemble import RTEnsemble
@@ -49,7 +49,7 @@ class GARoutine(object):
         self.HALL_OF_FAME_SIZE = int(0.15 * self.POPULATION_SIZE)
         self.P_CROSSOVER = 0.9
         self.P_MUTATION = 0.3
-        self.MAX_GENERATIONS = 40
+        self.MAX_GENERATIONS = 100
         self.IND_PB = 0.8
         self.KAPPA_INIT = (10, 60)
 

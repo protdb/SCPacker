@@ -36,6 +36,24 @@ NCAA_TEMPLATES_ = {'SEP': {'atoms': ['N', 'CA', 'C', 'O', 'CB', 'OG', 'P', 'O1P'
                        'dihedral_atoms': [['N', 'CA', 'CB', 'SG'],
                                           ['CA', 'CB', 'SG', 'OD']],
                        'spin_atoms': ['SG', 'OD']
+                   },
+                   'HIA': {
+                       'atoms': ['N', 'CA', 'CB', 'C', 'O', 'C3', 'С4', 'C6', 'C7', 'C8', 'N2', 'N3', 'O2'],
+                        'dihedral_atoms': [
+                                # ['CA', 'C', 'N', 'C3'],
+                                # ['C', 'N', 'C3', 'C4'],
+                                 ['N', 'C3', 'C4', 'CB'],
+                               #  ['N', 'C3', 'C8', 'O2']
+                        ],
+                       'spin_atoms': ['N2', 'O2'],
+                   },
+                   'R3A': {
+                       'atoms': ['N', 'CA', 'CB', 'SG', 'C3', 'С4'],
+                       'dihedral_atoms' : [['N', 'CA', 'CB', 'SG'],
+                                         ['CA', 'CB', 'SG', 'CD'],
+                                         ['CB', 'SG', 'CD', 'C3'],
+                                         ['SG', 'CD', 'C3', 'C4']],
+                       'spin_atoms': ['N2', 'O2'],
                    }
                    }
 

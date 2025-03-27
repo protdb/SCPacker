@@ -1,10 +1,14 @@
 import os.path
+from pathlib import Path
 
 import chilife as pack
+import MDAnalysis as mda
+from chilife import fmt_str
 
 from packer.ga_repack import ga_repack_neighbours
 from packer.mcmc_repack import mcmc_repack_neighbours
 from packer.ensemble import RTEnsemble
+
 
 
 class MutationPacker(object):
@@ -19,9 +23,7 @@ class MutationPacker(object):
         self.protein = pack.Protein.from_pdb(str(pdb_path))
 
     def mutate(self,
-               aa_code,
-               chain,
-               site,
+               position_info:list,
                repack=True,
                n_samples=500,
                with_library=True,
@@ -31,38 +33,42 @@ class MutationPacker(object):
                ):
         assert self.protein is not None, "Protein data not loaded"
 
-        mutation_ensemble = RTEnsemble(res=aa_code,
-                                       chain=chain,
-                                       site=site,
-                                       protein=self.protein)
+        for record in position_info:
+            aa_code, chain, site = record
 
-        if repack:
-            if repack_mode == 'MCMC':
-                self.protein, _ = mcmc_repack_neighbours(self.protein,
-                                                         mutation_ensemble,
-                                                         energy_func=self.energy_fxn,
-                                                         repetitions=n_samples,
-                                                         off_rotamer=not with_library,
-                                                         repack_radius=repack_radius,
-                                                         temp=temp,
-                                                         add_missing_atoms=True
-                                                         )
 
-            elif repack_mode == 'GA':
-                self.protein = ga_repack_neighbours(self.protein,
-                                                    mutation_ensemble,
-                                                    energy_func=self.energy_fxn,
-                                                    repack_radius=repack_radius,
-                                                    add_missing_atoms=True,
-                                                    init_mode='rotlib' if with_library else 'random'
-                                                    )
+            mutation_ensemble = RTEnsemble(res=aa_code,
+                                           chain=chain,
+                                           site=site,
+                                           protein=self.protein)
 
+            if repack:
+                if repack_mode == 'MCMC':
+                    self.protein, _ = mcmc_repack_neighbours(self.protein,
+                                                             mutation_ensemble,
+                                                             energy_func=self.energy_fxn,
+                                                             repetitions=n_samples,
+                                                             off_rotamer=not with_library,
+                                                             repack_radius=repack_radius,
+                                                             temp=temp,
+                                                             add_missing_atoms=True
+                                                             )
+
+                elif repack_mode == 'GA':
+                    self.protein = ga_repack_neighbours(self.protein,
+                                                        mutation_ensemble,
+                                                        energy_func=self.energy_fxn,
+                                                        repack_radius=repack_radius,
+                                                        add_missing_atoms=True,
+                                                        init_mode='rotlib' if with_library else 'random'
+                                                        )
+
+
+                else:
+                    raise NotImplementedError(f'Invalid repack mode: {repack_mode}')
 
             else:
-                raise NotImplementedError(f'Invalid repack mode: {repack_mode}')
-
-        else:
-            self.protein = pack.mutate(self.protein, mutation_ensemble, add_missing_atoms=True)
+                self.protein = pack.mutate(self.protein, mutation_ensemble, add_missing_atoms=True)
 
     def repacked_residues(self):
         try:
@@ -73,4 +79,41 @@ class MutationPacker(object):
         return repack_residues
 
     def save(self, filepath):
-        pack.save(filepath, self.protein)
+        protein = self.protein
+
+        with open(filepath, 'a+') as pdb_file:
+
+            if isinstance(protein, (mda.AtomGroup, mda.Universe)):
+                traj = protein.universe.trajectory
+                name = Path(protein.universe.filename) if protein.universe.filename is not None else pdb_file.name
+                name = name.name
+            else:
+                traj = protein.trajectory
+                name = protein.fname
+
+            if name is None:
+                name = Path(pdb_file.name).name
+
+            name = name[:-4] if name.endswith(".pdb") else name
+
+            pdb_file.write(f'HEADER {name}\n')
+            for mdl, ts in enumerate(traj):
+                pdb_file.write(f"MODEL {mdl}\n")
+                [
+                    pdb_file.write(
+                        fmt_str.format(
+                            atom.index,
+                            atom.name,
+                            atom.resname[:3],
+                            atom.segid,
+                            atom.resnum,
+                            *atom.position,
+                            1.00,
+                            1.0,
+                            atom.type,
+                        )
+                    )
+                    for atom in protein.atoms
+                ]
+                pdb_file.write("TER\n")
+                pdb_file.write("ENDMDL\n")

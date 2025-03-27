@@ -91,13 +91,16 @@ def build_ptm_lib(ptm_type):
     out_pdb.write(str(output_file))
 
 
-def build_rot_lib(ptm_type):
+def build_rot_lib(ptm_type, site=1):
     config = Config()
     pdb_file = config.lib_folder / f'{ptm_type}.pdb'
     assert os.path.exists(pdb_file)
 
+    print(f"Building rotamer for {pdb_file}")
+
     pack.create_library(libname=ptm_type,
                         resname=ptm_type,
+                        site=site,
                         pdb=str(pdb_file),
                         dihedral_atoms=NCAA_TEMPLATES_[ptm_type]['dihedral_atoms'],
                         spin_atoms=NCAA_TEMPLATES_[ptm_type]['spin_atoms'])
